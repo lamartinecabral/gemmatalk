@@ -1,0 +1,10 @@
+{
+  "name": "gemmatalk",
+  "scripts": {
+    "lint": "npx @biomejs/biome lint",
+    "serve": "npx serve"
+  },
+  "dependencies": {
+    "@litert-lm/core": "0.15.0"
+  }
+}

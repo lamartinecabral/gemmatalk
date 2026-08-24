@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>LiteRT-LM Local Gemma Chat</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "@litert-lm/core": "https://cdn.jsdelivr.net/npm/@litert-lm/core@0.15.0/+esm"
+        }
+      }
+    </script>
+    <style>
+      body {
+        font-family: monospace;
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        background: #f4f4f5;
+      }
+      h2 {
+        color: #1f2937;
+        margin-bottom: 0.2rem;
+      }
+      p {
+        color: #52525b;
+        margin-bottom: 1.5rem;
+      }
+      #chat-container {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        height: 70vh;
+      }
+      #messages {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        border-bottom: 1px solid #e4e4e7;
+      }
+      .message {
+        margin-bottom: 1rem;
+        padding: 0.5rem 0.8rem;
+        border-radius: 6px;
+        line-height: 1.5;
+      }
+      .message.system {
+        color: #52525b;
+        font-size: 0.9em;
+        font-style: italic;
+        text-align: center;
+      }
+      .message.you {
+        background: #e0f2fe;
+        color: #0369a1;
+        align-self: flex-end;
+      }
+      .message.ai {
+        background: #f3f4f6;
+        color: #1f2937;
+      }
+      .input-area {
+        display: flex;
+        padding: 1rem;
+        gap: 0.5rem;
+      }
+      input {
+        flex-grow: 1;
+        padding: 0.75rem;
+        border: 1px solid #d4d4d8;
+        border-radius: 4px;
+        outline: none;
+      }
+      input:focus {
+        border-color: #2563eb;
+      }
+      button {
+        padding: 0.75rem 1.5rem;
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      button:disabled {
+        background: #93c5fd;
+        cursor: not-allowed;
+      }
+      input:disabled {
+        background: #f4f4f5;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Gemma 4 E2B Local Chat</h2>
+    <p>
+      Running entirely in your browser via WebGPU, LiteRT-LM, and Service Worker
+      Caching.
+    </p>
+
+    <div id="chat-container">
+      <div
+        id="progress-container"
+        style="display: none; padding: 1rem; border-bottom: 1px solid #e4e4e7"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+            color: #52525b;
+            margin-bottom: 4px;
+          "
+        >
+          <span>Downloading Model (First load only)...</span>
+          <span id="progress-text">0%</span>
+        </div>
+        <div
+          style="
+            width: 100%;
+            background: #e4e4e7;
+            border-radius: 4px;
+            height: 8px;
+            overflow: hidden;
+          "
+        >
+          <div
+            id="progress-bar"
+            style="
+              width: 0%;
+              height: 100%;
+              background: #2563eb;
+              transition: width 0.2s linear;
+            "
+          ></div>
+        </div>
+      </div>
+      <div id="messages"></div>
+      <div class="input-area">
+        <input
+          type="text"
+          id="userInput"
+          placeholder="Type a message..."
+          disabled
+          autocomplete="off"
+        />
+        <button id="sendBtn" disabled>Send</button>
+      </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
