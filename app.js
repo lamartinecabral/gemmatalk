@@ -39,6 +39,104 @@ navigator.serviceWorker.addEventListener("message", (event) => {
 
 let chatSession;
 
+const javascriptTool = {
+  type: "function",
+  function: {
+    name: "run_javascript",
+    description:
+      "Run JavaScript for calculations or data transformations and return the result. The code must return a JSON-serializable value.",
+    parameters: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description:
+            "JavaScript source to execute. Use a return statement for the value that should be sent back.",
+        },
+      },
+      required: ["code"],
+    },
+  },
+};
+
+let javascriptWorker;
+let nextJavascriptRequestId = 0;
+const javascriptRequests = new Map();
+
+function createJavascriptWorker() {
+  javascriptWorker = new Worker("javascript-runner.js");
+  javascriptWorker.addEventListener("message", ({ data }) => {
+    const request = javascriptRequests.get(data.id);
+    if (!request) return;
+    javascriptRequests.delete(data.id);
+    clearTimeout(request.timeout);
+    data.ok
+      ? request.resolve(data.value)
+      : request.reject(new Error(data.error));
+  });
+  javascriptWorker.addEventListener("error", (error) => {
+    for (const request of javascriptRequests.values()) {
+      clearTimeout(request.timeout);
+      request.reject(new Error(error.message || "JavaScript worker failed."));
+    }
+    javascriptRequests.clear();
+    javascriptWorker.terminate();
+    createJavascriptWorker();
+  });
+}
+
+createJavascriptWorker();
+
+function runJavascript(code) {
+  return new Promise((resolve, reject) => {
+    const id = ++nextJavascriptRequestId;
+    const timeout = setTimeout(() => {
+      javascriptRequests.delete(id);
+      javascriptWorker.terminate();
+      createJavascriptWorker();
+      reject(new Error("JavaScript execution timed out after 5 seconds."));
+    }, 5000);
+
+    javascriptRequests.set(id, { resolve, reject, timeout });
+    javascriptWorker.postMessage({ id, code });
+  });
+}
+
+async function executeTool(toolCall) {
+  const name = toolCall?.function?.name;
+  let argumentsObject = toolCall?.function?.arguments || {};
+  if (typeof argumentsObject === "string") {
+    argumentsObject = JSON.parse(argumentsObject);
+  }
+
+  if (name !== javascriptTool.function.name) {
+    throw new Error(`Unknown tool: ${name || "(missing name)"}`);
+  }
+  if (typeof argumentsObject.code !== "string") {
+    throw new Error("run_javascript requires a string 'code' argument.");
+  }
+
+  return runJavascript(argumentsObject.code);
+}
+
+async function streamModelMessage(message, responseNode) {
+  const getResponseNode = () => {
+    if (typeof responseNode === "function") return responseNode();
+    return responseNode;
+  };
+  let toolCalls = [];
+  for await (const chunk of chatSession.sendMessageStreaming(message)) {
+    if (chunk.tool_calls) toolCalls = chunk.tool_calls;
+    for (const content of chunk.content || []) {
+      if (content.type === "text") {
+        getResponseNode().innerText += content.text;
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    }
+  }
+  return toolCalls;
+}
+
 // 1. Register the Service Worker & wait for it to take over
 async function setupServiceWorker() {
   if ("serviceWorker" in navigator) {
@@ -69,9 +167,11 @@ async function initAI() {
         messages: [
           {
             role: "system",
-            content: "You are a conversational bot.",
+            content:
+              "You are a conversational bot running in a browser environment.",
           },
         ],
+        tools: [javascriptTool],
       },
     });
 
@@ -128,16 +228,41 @@ async function handleSend() {
   sendButton.disabled = true;
 
   appendMessage("You", text);
-  const aiResponseNode = appendMessage("AI", "");
+  let aiResponseNode;
+  const getAiResponseNode = () => {
+    if (aiResponseNode) return aiResponseNode;
+    return (aiResponseNode = appendMessage("AI", ""));
+  };
 
   try {
-    // Stream response chunks from the local model back to the DOM
-    for await (const chunk of chatSession.sendMessageStreaming(text)) {
-      aiResponseNode.innerText += chunk.content[0].text;
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    let message = text;
+    for (let round = 0; round < 5; round += 1) {
+      const toolCalls = await streamModelMessage(message, getAiResponseNode);
+      if (!toolCalls.length) break;
+
+      const toolResults = [];
+      for (const toolCall of toolCalls) {
+        appendMessage("System", `Running ${toolCall.function.name}…`);
+        try {
+          const result = await executeTool(toolCall);
+          toolResults.push({
+            type: "tool_response",
+            name: toolCall.function.name,
+            response: { ok: true, result },
+          });
+        } catch (error) {
+          toolResults.push({
+            type: "tool_response",
+            name: toolCall.function.name,
+            response: { ok: false, error: error.message },
+          });
+        }
+      }
+
+      message = { role: "tool", content: toolResults };
     }
   } catch (err) {
-    aiResponseNode.innerText += `\n\n[Error: ${err.message}]`;
+    getAiResponseNode().innerText += `\n\n[Error: ${err.message}]`;
   } finally {
     inputField.disabled = false;
     sendButton.disabled = false;
