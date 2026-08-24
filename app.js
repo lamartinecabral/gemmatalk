@@ -11,6 +11,9 @@ const progressContainer = document.getElementById("progress-container");
 const progressBar = document.getElementById("progress-bar");
 const progressText = document.getElementById("progress-text");
 
+// Turn the lightweight Lucide placeholders into consistent SVG icons.
+window.lucide?.createIcons();
+
 // Listen for progress messages from the Service Worker
 navigator.serviceWorker.addEventListener("message", (event) => {
   if (event.data && event.data.type === "DOWNLOAD_PROGRESS") {
@@ -18,8 +21,8 @@ navigator.serviceWorker.addEventListener("message", (event) => {
     const percent = Math.min(Math.round((loaded / total) * 100), 100);
 
     // Show the bar if we are downloading
-    if (progressContainer.style.display === "none" && percent < 100) {
-      progressContainer.style.display = "block";
+    if (progressContainer.classList.contains("hidden") && percent < 100) {
+      progressContainer.classList.remove("hidden");
     }
 
     progressBar.style.width = `${percent}%`;
@@ -28,7 +31,7 @@ navigator.serviceWorker.addEventListener("message", (event) => {
     // Hide it once fully downloaded
     if (percent >= 100) {
       setTimeout(() => {
-        progressContainer.style.display = "none";
+        progressContainer.classList.add("hidden");
       }, 1000);
     }
   }
@@ -87,13 +90,26 @@ async function initAI() {
 
 // 3. Handle Chat Interactions
 function appendMessage(sender, text) {
+  document.getElementById("welcome")?.remove();
+
   const msgDiv = document.createElement("div");
-  msgDiv.className = `message ${sender.toLowerCase()}`;
-  msgDiv.innerHTML = `<strong>${sender}:</strong> <span class="content"></span>`;
-  msgDiv.querySelector(".content").innerText = text;
+  const isUser = sender === "You";
+  const isSystem = sender === "System";
+  msgDiv.className = isSystem
+    ? "message mx-auto max-w-xl py-2 text-center text-xs italic text-slate-500"
+    : `message flex max-w-[88%] flex-col gap-1.5 rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${isUser ? "ml-auto bg-indigo-500 text-white" : "mr-auto border border-line bg-slate-900/80 text-slate-200"}`;
+
+  if (isSystem) {
+    msgDiv.textContent = text;
+  } else {
+    msgDiv.innerHTML = `<div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider ${isUser ? "text-indigo-100" : "text-indigo-300"}"><span class="grid h-5 w-5 place-items-center rounded-md ${isUser ? "bg-white/15" : "bg-indigo-500/15"}"><i data-lucide="${isUser ? "user-round" : "sparkles"}" class="h-3 w-3"></i></span>${sender}</div><span class="content"></span>`;
+    msgDiv.querySelector(".content").innerText = text;
+  }
   messagesContainer.appendChild(msgDiv);
+  // The message must be in the document before Lucide replaces its placeholder.
+  window.lucide?.createIcons();
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
-  return msgDiv.querySelector(".content");
+  return msgDiv.querySelector(".content") || msgDiv;
 }
 
 async function handleSend() {
@@ -124,8 +140,11 @@ async function handleSend() {
 
 // Bind event listeners
 sendButton.addEventListener("click", handleSend);
-inputField.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") handleSend();
+inputField.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    handleSend();
+  }
 });
 
 // Boot the application
