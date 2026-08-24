@@ -112,11 +112,18 @@ function appendMessage(sender, text) {
   return msgDiv.querySelector(".content") || msgDiv;
 }
 
+function resizeInput() {
+  // Let the composer grow with multi-line messages without taking over the chat.
+  inputField.style.height = "auto";
+  inputField.style.height = `${Math.min(inputField.scrollHeight, 160)}px`;
+}
+
 async function handleSend() {
   const text = inputField.value.trim();
   if (!text) return;
 
   inputField.value = "";
+  resizeInput();
   inputField.disabled = true;
   sendButton.disabled = true;
 
@@ -140,6 +147,7 @@ async function handleSend() {
 
 // Bind event listeners
 sendButton.addEventListener("click", handleSend);
+inputField.addEventListener("input", resizeInput);
 inputField.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
@@ -148,5 +156,6 @@ inputField.addEventListener("keydown", (e) => {
 });
 
 // Boot the application
+resizeInput();
 await setupServiceWorker();
 await initAI();
