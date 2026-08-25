@@ -1,5 +1,5 @@
 {
-  "files": ["app.js"],
+  "files": ["app/index.js"],
   "compilerOptions": {
     "noEmit": true,
     "allowJs": true,

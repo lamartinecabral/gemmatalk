@@ -71,7 +71,7 @@ let nextJavascriptRequestId = 0;
 const javascriptRequests = new Map();
 
 function createJavascriptWorker() {
-  javascriptWorker = new Worker("javascript-runner.js");
+  javascriptWorker = new Worker("./app/javascript-runner.js");
   javascriptWorker.addEventListener("message", ({ data }) => {
     const request = javascriptRequests.get(data.id);
     if (!request) return;
