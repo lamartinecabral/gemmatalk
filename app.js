@@ -43,15 +43,13 @@ const javascriptTool = {
   type: "function",
   function: {
     name: "run_javascript",
-    description:
-      "Run JavaScript for calculations or data transformations and return the result. The code must return a JSON-serializable value.",
+    description: "Use this tool to run javascript snippets in a Web Worker.",
     parameters: {
       type: "object",
       properties: {
         code: {
           type: "string",
-          description:
-            "JavaScript source to execute. Use a return statement for the value that should be sent back.",
+          description: "JavaScript source to execute.",
         },
       },
       required: ["code"],
@@ -88,6 +86,7 @@ function createJavascriptWorker() {
 createJavascriptWorker();
 
 function runJavascript(code) {
+  console.log({ code });
   return new Promise((resolve, reject) => {
     const id = ++nextJavascriptRequestId;
     const timeout = setTimeout(() => {
@@ -168,7 +167,7 @@ async function initAI() {
           {
             role: "system",
             content:
-              "You are a conversational bot running in a browser environment.",
+              "You are a conversational bot running in a user browser. You can get real time details about the environment by running javascript snippets.",
           },
         ],
         tools: [javascriptTool],
@@ -245,12 +244,14 @@ async function handleSend() {
         appendMessage("System", `Running ${toolCall.function.name}…`);
         try {
           const result = await executeTool(toolCall);
+          console.log({ result });
           toolResults.push({
             type: "tool_response",
             name: toolCall.function.name,
             response: { ok: true, result },
           });
         } catch (error) {
+          console.log({ error });
           toolResults.push({
             type: "tool_response",
             name: toolCall.function.name,
