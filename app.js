@@ -145,14 +145,11 @@ async function streamModelMessage(message, responseNode) {
 async function setupServiceWorker() {
   if ("serviceWorker" in navigator) {
     await navigator.serviceWorker.register("service-worker.js");
+    await navigator.serviceWorker.ready;
 
-    // Pause execution until the service worker explicitly controls network requests
-    // This prevents the 1.9GB fetch from bypassing the cache layer on the very first visit.
-    if (!navigator.serviceWorker.controller) {
-      await new Promise((resolve) => {
-        navigator.serviceWorker.addEventListener("controllerchange", resolve);
-      });
-    }
+    // Hard reloads prevent the service from taking control. A normal reload fixes it.
+    if (!navigator.serviceWorker.controller) location.reload();
+
     console.log("Service Worker is active and controlling requests.");
   }
 }
