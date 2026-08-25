@@ -1,0 +1,10 @@
+{
+  "files": ["app.js"],
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "useUnknownInCatchVariables": false
+  }
+}

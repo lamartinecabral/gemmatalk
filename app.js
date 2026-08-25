@@ -1,19 +1,21 @@
+// @ts-check
 import { Engine } from "@litert-lm/core";
+import { lucideCreateIcons, getElem } from "./utils.js";
 
 // The WebGPU compatible Gemma 4 E2B weights file (Approx 1.9GB)
 const MODEL_URL =
   "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.litertlm";
 
 const messagesContainer = document.getElementById("messages");
-const inputField = document.getElementById("userInput");
-const sendButton = document.getElementById("sendBtn");
-const clearButton = document.getElementById("clearBtn");
+const inputField = getElem("textarea", "userInput");
+const sendButton = getElem("button", "sendBtn");
+const clearButton = getElem("button", "clearBtn");
 const progressContainer = document.getElementById("progress-container");
 const progressBar = document.getElementById("progress-bar");
 const progressText = document.getElementById("progress-text");
 
 // Turn the lightweight Lucide placeholders into consistent SVG icons.
-window.lucide?.createIcons();
+lucideCreateIcons();
 
 // Listen for progress messages from the Service Worker
 navigator.serviceWorker.addEventListener("message", (event) => {
@@ -44,6 +46,7 @@ let aiEngine;
 let chatSession;
 let isGenerating = false;
 
+/** @type {import('@litert-lm/core').FunctionTool} */
 const javascriptTool = {
   type: "function",
   function: {
@@ -62,6 +65,7 @@ const javascriptTool = {
   },
 };
 
+/** @type {Worker} */
 let javascriptWorker;
 let nextJavascriptRequestId = 0;
 const javascriptRequests = new Map();
@@ -90,7 +94,7 @@ function createJavascriptWorker() {
 
 createJavascriptWorker();
 
-function runJavascript(code) {
+function runJavascript(code = "") {
   console.log({ code });
   return new Promise((resolve, reject) => {
     const id = ++nextJavascriptRequestId;
@@ -128,12 +132,13 @@ async function streamModelMessage(message, responseNode) {
     if (typeof responseNode === "function") return responseNode();
     return responseNode;
   };
+  /** @type {import('@litert-lm/core').ToolCall[]} */
   let toolCalls = [];
   for await (const chunk of chatSession.sendMessageStreaming(message)) {
     if (chunk.tool_calls) toolCalls = chunk.tool_calls;
     for (const content of chunk.content || []) {
-      if (content.type === "text") {
-        getResponseNode().innerText += content.text;
+      if (content["type"] === "text") {
+        getResponseNode().innerText += String(content["text"]);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
       }
     }
@@ -203,7 +208,7 @@ function clearDisplayedMessages() {
     "flex h-full min-h-64 flex-col items-center justify-center text-center";
   welcome.innerHTML = `<div class="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-indigo-400/20 bg-indigo-500/10 text-indigo-300"><i data-lucide="message-circle" aria-hidden="true" class="h-7 w-7"></i></div><h3 class="text-base font-medium">Your private conversation starts here</h3><p class="mt-2 max-w-sm text-sm leading-6 text-slate-400">Ask anything. The model is downloaded once and then runs entirely on your device.</p>`;
   messagesContainer.appendChild(welcome);
-  window.lucide?.createIcons();
+  lucideCreateIcons();
 }
 
 async function clearConversation() {
@@ -241,11 +246,11 @@ function appendMessage(sender, text) {
     msgDiv.textContent = text;
   } else {
     msgDiv.innerHTML = `<div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider ${isUser ? "text-indigo-100" : "text-indigo-300"}"><span class="grid h-5 w-5 place-items-center rounded-md ${isUser ? "bg-white/15" : "bg-indigo-500/15"}"><i data-lucide="${isUser ? "user-round" : "sparkles"}" class="h-3 w-3"></i></span>${sender}</div><span class="content"></span>`;
-    msgDiv.querySelector(".content").innerText = text;
+    msgDiv.querySelector(".content")["innerText"] = text;
   }
   messagesContainer.appendChild(msgDiv);
   // The message must be in the document before Lucide replaces its placeholder.
-  window.lucide?.createIcons();
+  lucideCreateIcons();
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
   return msgDiv.querySelector(".content") || msgDiv;
 }
@@ -275,11 +280,13 @@ async function handleSend() {
   };
 
   try {
+    /** @type {import('@litert-lm/core').MessageLike} */
     let message = text;
     for (let round = 0; round < 5; round += 1) {
       const toolCalls = await streamModelMessage(message, getAiResponseNode);
       if (!toolCalls.length) break;
 
+      /** @type {import('@litert-lm/core').ToolResponsePart[]} */
       const toolResults = [];
       for (const toolCall of toolCalls) {
         appendMessage("System", `Running ${toolCall.function.name}…`);

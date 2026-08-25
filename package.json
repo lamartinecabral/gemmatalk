@@ -2,9 +2,11 @@
   "name": "gemmatalk",
   "scripts": {
     "lint": "npx @biomejs/biome lint",
-    "serve": "npx serve"
+    "serve": "npx serve",
+    "typecheck": "tsc"
   },
   "dependencies": {
-    "@litert-lm/core": "0.15.0"
+    "@litert-lm/core": "0.15.0",
+    "typescript": "^6.0.3"
   }
 }
