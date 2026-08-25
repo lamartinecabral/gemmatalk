@@ -7,6 +7,7 @@ const MODEL_URL =
 const messagesContainer = document.getElementById("messages");
 const inputField = document.getElementById("userInput");
 const sendButton = document.getElementById("sendBtn");
+const clearButton = document.getElementById("clearBtn");
 const progressContainer = document.getElementById("progress-container");
 const progressBar = document.getElementById("progress-bar");
 const progressText = document.getElementById("progress-text");
@@ -37,7 +38,11 @@ navigator.serviceWorker.addEventListener("message", (event) => {
   }
 });
 
+/** @type {Engine} */
+let aiEngine;
+/** @type {import('@litert-lm/core').Conversation} */
 let chatSession;
+let isGenerating = false;
 
 const javascriptTool = {
   type: "function",
@@ -160,19 +165,9 @@ async function initAI() {
   );
 
   try {
-    const engine = await Engine.create({ model: MODEL_URL });
-    chatSession = await engine.createConversation({
-      preface: {
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a conversational bot running in a user browser. You can get real time details about the environment by running javascript snippets.",
-          },
-        ],
-        tools: [javascriptTool],
-      },
-    });
+    aiEngine = await Engine.create({ model: MODEL_URL });
+    chatSession = await createChatSession();
+    chatSession.delete;
 
     appendMessage(
       "System",
@@ -180,10 +175,57 @@ async function initAI() {
     );
     inputField.disabled = false;
     sendButton.disabled = false;
+    clearButton.disabled = false;
     inputField.focus();
   } catch (err) {
     appendMessage("System", `Failed to load model: ${err.message}`);
     console.error(err);
+  }
+}
+
+async function createChatSession() {
+  return aiEngine.createConversation({
+    preface: {
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a conversational bot running in a user browser. You can get real time details about the environment by running javascript snippets.",
+        },
+      ],
+      tools: [javascriptTool],
+    },
+  });
+}
+
+function clearDisplayedMessages() {
+  messagesContainer.replaceChildren();
+  const welcome = document.createElement("div");
+  welcome.id = "welcome";
+  welcome.className =
+    "flex h-full min-h-64 flex-col items-center justify-center text-center";
+  welcome.innerHTML = `<div class="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-indigo-400/20 bg-indigo-500/10 text-indigo-300"><i data-lucide="message-circle" aria-hidden="true" class="h-7 w-7"></i></div><h3 class="text-base font-medium">Your private conversation starts here</h3><p class="mt-2 max-w-sm text-sm leading-6 text-slate-400">Ask anything. The model is downloaded once and then runs entirely on your device.</p>`;
+  messagesContainer.appendChild(welcome);
+  window.lucide?.createIcons();
+}
+
+async function clearConversation() {
+  if (!chatSession || isGenerating) return;
+  if (!window.confirm("Clear this conversation history?")) return;
+
+  clearButton.disabled = true;
+  inputField.disabled = true;
+  sendButton.disabled = true;
+  try {
+    chatSession = await createChatSession();
+    clearDisplayedMessages();
+  } catch (error) {
+    appendMessage("System", `Failed to clear conversation: ${error.message}`);
+  } finally {
+    clearButton.disabled = false;
+    inputField.disabled = false;
+    sendButton.disabled = false;
+    inputField.focus();
   }
 }
 
@@ -225,6 +267,8 @@ async function handleSend() {
   resizeInput();
   inputField.disabled = true;
   sendButton.disabled = true;
+  clearButton.disabled = true;
+  isGenerating = true;
 
   appendMessage("You", text);
   let aiResponseNode;
@@ -265,13 +309,16 @@ async function handleSend() {
   } catch (err) {
     getAiResponseNode().innerText += `\n\n[Error: ${err.message}]`;
   } finally {
+    isGenerating = false;
     inputField.disabled = false;
     sendButton.disabled = false;
+    clearButton.disabled = false;
     inputField.focus();
   }
 }
 
 // Bind event listeners
+clearButton.addEventListener("click", clearConversation);
 sendButton.addEventListener("click", handleSend);
 inputField.addEventListener("input", resizeInput);
 inputField.addEventListener("keydown", (e) => {

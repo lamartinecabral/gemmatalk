@@ -13,6 +13,7 @@ The model is downloaded from Hugging Face on the first visit (approximately **1.
 - Service-worker caching for the model
 - Model-requested JavaScript calculations and data transformations
 - Responsive dark UI with keyboard-friendly message entry
+- One-click conversation history clearing
 
 ## Requirements
 
@@ -50,7 +51,7 @@ Subsequent launches reuse the cached model until the browser storage is cleared 
 
 ## Usage
 
-Type a message and press **Enter** to send it. Use **Shift + Enter** to insert a newline. Responses are streamed into the conversation as they are generated.
+Type a message and press **Enter** to send it. Use **Shift + Enter** to insert a newline. Responses are streamed into the conversation as they are generated. Use **Clear** in the header to start a fresh conversation; this removes the displayed messages and resets the model's conversation context (the downloaded model remains cached).
 
 GemmaTalk exposes one tool to the model, `run_javascript`, for calculations and data transformations. Tool code is executed in a dedicated Web Worker, must return a JSON-serializable value, and is stopped after five seconds. For example, the model may use it to calculate a result instead of doing arithmetic in generated text.
 
