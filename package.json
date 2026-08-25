@@ -3,6 +3,7 @@
   "scripts": {
     "lint": "npx @biomejs/biome lint",
     "serve": "npx serve",
+    "test": "npm run typecheck && npm run lint",
     "typecheck": "tsc"
   },
   "dependencies": {
