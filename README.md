@@ -17,10 +17,10 @@ The model is downloaded from Hugging Face on the first visit (approximately **1.
 
 ## Requirements
 
-- Node.js and npm (for the local static server)
+- Node.js and npm (for the local static server and development checks)
 - A modern browser with WebGPU support
 - Approximately 1.9 GB of free storage for the model cache
-- A connection to download the model and browser dependencies on the first visit
+- A connection to download the model and CDN-hosted frontend dependencies on the first visit
 
 WebGPU availability varies by browser and hardware. Chromium-based browsers generally provide the broadest support; make sure hardware acceleration and WebGPU are enabled.
 
@@ -59,37 +59,45 @@ GemmaTalk exposes one tool to the model, `run_javascript`, for calculations and 
 
 ```text
 .
-├── index.html                     UI, styles, import maps, and CDN dependencies
-├── app.js                         Application startup and chat/tool loop
-├── javascript-tool.js             Worker-backed tool dispatch
-├── service-worker.js              Model caching and download tracking
-├── package.json
-└── biome.json
+├── index.html                     UI, styles, import map, and CDN dependencies
+├── app/
+│   ├── index.js                   Application startup and chat/tool loop
+│   ├── javascript-runner.js       Web Worker for model-requested JavaScript
+│   └── utils.js                   Utilities and helpers
+├── service-worker.js              Model caching and download progress tracking
+└── package.json                   Serve, typecheck, lint, and test scripts
 ```
 
 ## Privacy and security notes
 
 - There is no backend, account system, analytics integration, or chat API in this repository.
 - Prompts and generated messages are kept in the current page session and are not sent to an application server.
-- The model file is fetched from Hugging Face and frontend dependencies are fetched from their configured CDNs.
+- The model file is fetched from Hugging Face. LiteRT-LM, Tailwind CSS, and Lucide are loaded from the URLs configured in `index.html`.
 - `run_javascript` executes code requested by the model in a Worker. The Worker has no access to the chat DOM, but Worker code should not be treated as a strong security sandbox. Do not use this app with untrusted model files or sensitive environments without reviewing and hardening that feature.
 - The model cache can be removed through the browser's site-storage settings.
 
 ## Development
 
-Run the formatter/linter with:
+The app is served as native JavaScript modules from the repository root; there is no build step. JavaScript is checked with TypeScript using `// @ts-check` and the repository's `tsconfig.json`.
+
+Run the type checker and linter together:
 
 ```bash
-npm run lint
+npm test
 ```
 
-There is no build step: the app is served as native JavaScript modules from the repository root.
+Run either check separately when needed:
+
+```bash
+npm run typecheck
+npm run lint
+```
 
 ## Troubleshooting
 
 ### The input stays disabled
 
-Check the browser console for WebGPU or model-loading errors. Confirm that hardware acceleration is enabled, that the browser supports WebGPU, and that the model URL is reachable.
+Check the browser console for WebGPU, service-worker, or model-loading errors. Confirm that hardware acceleration is enabled, that the browser supports WebGPU, and that the model URL is reachable. If the service worker does not take control after a hard reload, reload the page normally.
 
 ### The model downloads again
 
