@@ -99,6 +99,24 @@ npm run lint
 
 Check the browser console for WebGPU, service-worker, or model-loading errors. Confirm that hardware acceleration is enabled, that the browser supports WebGPU, and that the model URL is reachable. If the service worker does not take control after a hard reload, reload the page normally.
 
+### WebGPU is unavailable on Linux
+
+On Linux, Chromium's WebGPU implementation uses the Vulkan graphics stack. A missing Vulkan driver, a broken Vulkan installation, or Chromium's Linux WebGPU feature flags can therefore prevent GemmaTalk from starting.
+
+1. Check the operating system first. Install the Vulkan runtime and the driver for your GPU using your distribution's packages, then run:
+
+   ```bash
+   vulkaninfo --summary
+   ```
+
+   This command should list a physical GPU without an initialization error. For example, Debian/Ubuntu systems commonly need `vulkan-tools` plus the appropriate Mesa or NVIDIA Vulkan driver package. Do not install a driver from a different GPU vendor just to make this command run; use the driver recommended for your hardware and distribution.
+
+2. In Chromium, open `chrome://gpu` and confirm that **WebGPU** is hardware accelerated. Also check `chrome://settings/system` and enable **Use graphics acceleration when available**, then restart the browser.
+
+3. If WebGPU is still missing on Linux, open `chrome://flags` and enable `#enable-vulkan` and `#enable-unsafe-webgpu`, then relaunch Chromium. These flags are experimental and may be renamed or removed as Linux support changes. Avoid relying on `#ignore-gpu-blocklist` except as a temporary diagnostic: it can cause crashes or unstable rendering.
+
+If `vulkaninfo --summary` works but `chrome://gpu` reports **Software only, hardware acceleration unavailable**, update the GPU driver and browser and check the browser's GPU-process errors. Software Vulkan (such as SwiftShader) is not a practical substitute for this app's model inference. See Chrome's [WebGPU troubleshooting guide](https://developer.chrome.com/docs/web-platform/webgpu/troubleshooting-tips) and [Dawn's WebGPU implementation overview](https://github.com/google/dawn/blob/main/docs/dawn/overview.md) for more detail.
+
 ### The model downloads again
 
 The model is stored in the browser's Cache Storage. Clearing site data, using private browsing, changing the service-worker cache name, or running out of storage can require a new download.
