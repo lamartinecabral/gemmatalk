@@ -1,8 +1,8 @@
 {
   "name": "gemmatalk",
   "scripts": {
-    "lint": "npx @biomejs/biome lint",
-    "serve": "npx serve",
+    "lint": "npx -y @biomejs/biome lint",
+    "serve": "npx -y serve",
     "test": "npm run typecheck && npm run lint",
     "typecheck": "tsc"
   },
