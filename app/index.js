@@ -127,7 +127,16 @@ async function executeTool(toolCall) {
   return runJavascript(argumentsObject.code);
 }
 
-async function streamModelMessage(message, responseNode) {
+function updateGenerationSpeed(responseNode, stats) {
+  const speedNode =
+    responseNode.parentElement.querySelector(".generation-speed");
+  if (!speedNode || !stats.tokens) return;
+
+  const tokensPerSecond = stats.tokens / stats.seconds;
+  speedNode.textContent = `${tokensPerSecond.toFixed(1)} tokens/s · ${stats.tokens} tokens`;
+}
+
+async function streamModelMessage(message, responseNode, stats) {
   const getResponseNode = () => {
     if (typeof responseNode === "function") return responseNode();
     return responseNode;
@@ -142,6 +151,18 @@ async function streamModelMessage(message, responseNode) {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
       }
     }
+  }
+
+  const benchmark = await chatSession.getBenchmarkInfo();
+  if (
+    !toolCalls.length &&
+    benchmark.lastDecodeTokenCount > 0 &&
+    benchmark.lastDecodeTokensPerSecond > 0
+  ) {
+    stats.tokens += benchmark.lastDecodeTokenCount;
+    stats.seconds +=
+      benchmark.lastDecodeTokenCount / benchmark.lastDecodeTokensPerSecond;
+    updateGenerationSpeed(getResponseNode(), stats);
   }
   return toolCalls;
 }
@@ -167,7 +188,10 @@ async function initAI() {
   );
 
   try {
-    aiEngine = await Engine.create({ model: MODEL_URL });
+    aiEngine = await Engine.create({
+      model: MODEL_URL,
+      benchmarkEnabled: true,
+    });
     chatSession = await createChatSession();
     chatSession.delete;
 
@@ -245,7 +269,7 @@ function appendMessage(sender, text) {
   if (isSystem) {
     msgDiv.textContent = text;
   } else {
-    msgDiv.innerHTML = `<div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider ${isUser ? "text-indigo-100" : "text-indigo-300"}"><span class="grid h-5 w-5 place-items-center rounded-md ${isUser ? "bg-white/15" : "bg-indigo-500/15"}"><i data-lucide="${isUser ? "user-round" : "sparkles"}" class="h-3 w-3"></i></span>${sender}</div><span class="content"></span>`;
+    msgDiv.innerHTML = `<div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider ${isUser ? "text-indigo-100" : "text-indigo-300"}"><span class="grid h-5 w-5 place-items-center rounded-md ${isUser ? "bg-white/15" : "bg-indigo-500/15"}"><i data-lucide="${isUser ? "user-round" : "sparkles"}" class="h-3 w-3"></i></span>${sender}</div><span class="content"></span>${!isUser ? '<span class="generation-speed text-[10px] font-normal tracking-normal text-slate-500">Generating…</span>' : ""}`;
     msgDiv.querySelector(".content")["innerText"] = text;
   }
   messagesContainer.appendChild(msgDiv);
@@ -274,6 +298,7 @@ async function handleSend() {
 
   appendMessage("You", text);
   let aiResponseNode;
+  const generationStats = { tokens: 0, seconds: 0 };
   const getAiResponseNode = () => {
     if (aiResponseNode) return aiResponseNode;
     return (aiResponseNode = appendMessage("AI", ""));
@@ -283,7 +308,11 @@ async function handleSend() {
     /** @type {import('@litert-lm/core').MessageLike} */
     let message = text;
     for (let round = 0; round < 5; round += 1) {
-      const toolCalls = await streamModelMessage(message, getAiResponseNode);
+      const toolCalls = await streamModelMessage(
+        message,
+        getAiResponseNode,
+        generationStats,
+      );
       if (!toolCalls.length) break;
 
       /** @type {import('@litert-lm/core').ToolResponsePart[]} */
