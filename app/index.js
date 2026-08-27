@@ -13,30 +13,40 @@ const clearButton = getElem("button", "clearBtn");
 const progressContainer = document.getElementById("progress-container");
 const progressBar = document.getElementById("progress-bar");
 const progressText = document.getElementById("progress-text");
+const progressLabel = document.getElementById("progress-label");
+let progressHideTimer;
 
 // Turn the lightweight Lucide placeholders into consistent SVG icons.
 lucideCreateIcons();
 
-// Listen for progress messages from the Service Worker
+// Listen for progress messages from the Service Worker. A cached response is
+// streamed into LiteRT-LM too, so it gets its own progress state rather than
+// appearing to finish instantly when the cache lookup succeeds.
 navigator.serviceWorker.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "DOWNLOAD_PROGRESS") {
-    const { loaded, total } = event.data;
-    const percent = Math.min(Math.round((loaded / total) * 100), 100);
+  const progress = event.data;
+  if (
+    !progress ||
+    !["DOWNLOAD_PROGRESS", "CACHE_LOAD_PROGRESS"].includes(progress.type)
+  ) {
+    return;
+  }
 
-    // Show the bar if we are downloading
-    if (progressContainer.classList.contains("hidden") && percent < 100) {
-      progressContainer.classList.remove("hidden");
-    }
+  const { loaded, total, type } = progress;
+  const percent = Math.min(Math.round((loaded / total) * 100), 100);
+  progressLabel.lastChild.textContent =
+    type === "CACHE_LOAD_PROGRESS"
+      ? " Loading model from cache…"
+      : " Downloading model for offline use…";
 
-    progressBar.style.width = `${percent}%`;
-    progressText.innerText = `${percent}% (${(loaded / 1024 / 1024).toFixed(1)} MB / ${(total / 1024 / 1024).toFixed(1)} MB)`;
+  clearTimeout(progressHideTimer);
+  progressContainer.classList.remove("hidden");
+  progressBar.style.width = `${percent}%`;
+  progressText.innerText = `${percent}% (${(loaded / 1024 / 1024).toFixed(1)} MB / ${(total / 1024 / 1024).toFixed(1)} MB)`;
 
-    // Hide it once fully downloaded
-    if (percent >= 100) {
-      setTimeout(() => {
-        progressContainer.classList.add("hidden");
-      }, 1000);
-    }
+  if (percent >= 100) {
+    progressHideTimer = setTimeout(() => {
+      progressContainer.classList.add("hidden");
+    }, 800);
   }
 });
 

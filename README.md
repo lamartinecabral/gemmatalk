@@ -9,7 +9,7 @@ The model is downloaded from Hugging Face on the first visit (approximately **1.
 - Private, browser-local conversations
 - Gemma 4 E2B instruction-tuned model
 - WebGPU-accelerated streaming responses
-- First-download progress indicator
+- Download and cached-model loading progress indicators
 - Service-worker caching for the model
 - Model-requested JavaScript calculations and data transformations
 - Responsive dark UI with keyboard-friendly message entry
@@ -44,7 +44,7 @@ On the first launch:
 
 1. The service worker is registered.
 2. LiteRT-LM initializes WebGPU.
-3. The Gemma model is downloaded and cached.
+3. The Gemma model is downloaded (or loaded from the browser cache) and initialized.
 4. The input becomes available when the model is ready.
 
 Subsequent launches reuse the cached model until the browser storage is cleared or the cache version changes.
@@ -64,7 +64,7 @@ GemmaTalk exposes one tool to the model, `run_javascript`, for calculations and 
 │   ├── index.js                   Application startup and chat/tool loop
 │   ├── javascript-runner.js       Web Worker for model-requested JavaScript
 │   └── utils.js                   Utilities and helpers
-├── service-worker.js              Model caching and download progress tracking
+├── service-worker.js              Model caching and download/cache-load progress tracking
 └── package.json                   Serve, typecheck, lint, and test scripts
 ```
 

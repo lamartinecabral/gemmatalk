@@ -10,9 +10,32 @@ self.addEventListener("fetch", (event) => {
       caches.open(CACHE_NAME).then(async (cache) => {
         const cachedResponse = await cache.match(event.request);
         if (cachedResponse) {
-          // If cached, immediately report 100% to the UI
-          broadcastProgress(1, 1);
-          return cachedResponse;
+          // The model is still read into WebGPU after it is found in Cache
+          // Storage. Track that response body separately from a network
+          // download so the UI can show loading progress on later launches.
+          const totalBytes =
+            Number(cachedResponse.headers.get("Content-Length")) ||
+            1930000000;
+          let loadedBytes = 0;
+          broadcastProgress("CACHE_LOAD_PROGRESS", 0, totalBytes);
+
+          const progressStream = new TransformStream({
+            transform(chunk, controller) {
+              loadedBytes += chunk.byteLength;
+              broadcastProgress(
+                "CACHE_LOAD_PROGRESS",
+                loadedBytes,
+                totalBytes,
+              );
+              controller.enqueue(chunk);
+            },
+          });
+
+          return new Response(cachedResponse.body.pipeThrough(progressStream), {
+            headers: cachedResponse.headers,
+            status: cachedResponse.status,
+            statusText: cachedResponse.statusText,
+          });
         }
 
         const networkResponse = await fetch(event.request);
@@ -26,7 +49,7 @@ self.addEventListener("fetch", (event) => {
         const progressStream = new TransformStream({
           transform(chunk, controller) {
             loadedBytes += chunk.byteLength;
-            broadcastProgress(loadedBytes, totalBytes);
+            broadcastProgress("DOWNLOAD_PROGRESS", loadedBytes, totalBytes);
             controller.enqueue(chunk); // Pass the chunk along unharmed
           },
         });
@@ -46,9 +69,9 @@ self.addEventListener("fetch", (event) => {
 });
 
 // Helper function to send progress data back to app.js
-async function broadcastProgress(loaded, total) {
+async function broadcastProgress(type, loaded, total) {
   const allClients = await self.clients.matchAll();
   for (const client of allClients) {
-    client.postMessage({ type: "DOWNLOAD_PROGRESS", loaded, total });
+    client.postMessage({ type, loaded, total });
   }
 }
