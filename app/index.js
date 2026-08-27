@@ -340,6 +340,32 @@ function resizeInput() {
   inputField.style.height = `${Math.min(inputField.scrollHeight, 160)}px`;
 }
 
+async function copyResponse(button) {
+  const message = button.closest(".message");
+  const content = message?.querySelector(".content");
+  if (!content) return;
+
+  await navigator.clipboard.writeText(content.innerText || "");
+
+  const label = button.querySelector("span");
+  const originalLabel = label?.textContent || "Copy";
+  if (label) label.textContent = "Copied!";
+  button.setAttribute("aria-label", "Response copied");
+  button.setAttribute("title", "Response copied");
+  setTimeout(() => {
+    if (!button.isConnected) return;
+    if (label) label.textContent = originalLabel;
+    button.setAttribute("aria-label", "Copy response");
+    button.setAttribute("title", "Copy response");
+  }, 1500);
+}
+
+messagesContainer.addEventListener("click", (event) => {
+  const target = /** @type {Element} */ (event.target);
+  const copyButton = target.closest(".copy-response");
+  if (copyButton) copyResponse(/** @type {HTMLButtonElement} */ (copyButton));
+});
+
 async function handleSend() {
   const text = inputField.value.trim();
   if (!text) return;
@@ -404,6 +430,9 @@ async function handleSend() {
     aiResponseNode.textContent += `\n\n[Error: ${err.message}]`;
   } finally {
     setGenerationState(aiResponseNode, "", false);
+    aiResponseNode.parentElement
+      .querySelector(".copy-response")
+      ?.classList.replace("hidden", "inline-flex");
     isGenerating = false;
     inputField.disabled = false;
     sendButton.disabled = false;

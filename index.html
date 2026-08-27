@@ -110,7 +110,12 @@
               <span class="generation-spinner" aria-hidden="true"></span>
               <span class="generation-status">Thinking…</span>
             </span>
-            <span class="generation-speed hidden text-[10px] font-normal tracking-normal text-slate-500"></span>
+            <div class="mt-1 flex items-center gap-3">
+              <span class="generation-speed hidden text-[10px] font-normal tracking-normal text-slate-500"></span>
+              <button type="button" class="copy-response hidden items-center gap-1.5 text-[10px] font-normal tracking-normal text-slate-500 transition hover:text-indigo-300" aria-label="Copy response" title="Copy response">
+                <i data-lucide="copy" aria-hidden="true" class="h-3 w-3"></i><span>Copy</span>
+              </button>
+            </div>
           </div>
         </template>
 
