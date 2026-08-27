@@ -10,6 +10,16 @@ const messagesContainer = document.getElementById("messages");
 const inputField = getElem("textarea", "userInput");
 const sendButton = getElem("button", "sendBtn");
 const clearButton = getElem("button", "clearBtn");
+const confirmClearModal = getElem("div", "confirmClearModal");
+const confirmClearCancel = getElem("button", "confirmClearCancel");
+const confirmClearAction = getElem("button", "confirmClearAction");
+const clearButtonLabel = getElem("span", "clearBtnLabel");
+const promptModal = getElem("div", "promptModal");
+const systemPromptInput = getElem("textarea", "systemPromptInput");
+const promptApply = getElem("button", "promptApply");
+const promptCancel = getElem("button", "promptCancel");
+const promptCancelTop = getElem("button", "promptCancelTop");
+const promptReset = getElem("button", "promptReset");
 const progressContainer = document.getElementById("progress-container");
 const progressBar = document.getElementById("progress-bar");
 const progressText = document.getElementById("progress-text");
@@ -59,6 +69,36 @@ let aiEngine;
 /** @type {import('@litert-lm/core').Conversation} */
 let chatSession;
 let isGenerating = false;
+let hasConversationHistory = false;
+
+const DEFAULT_SYSTEM_PROMPT =
+  "You are a conversational bot running in a user browser. You can get real time details about the environment by running javascript snippets.";
+const SYSTEM_PROMPT_STORAGE_KEY = "gemmatalk.systemPrompt";
+
+function getSystemPrompt() {
+  const savedPrompt = localStorage.getItem(SYSTEM_PROMPT_STORAGE_KEY);
+  return savedPrompt?.trim() ? savedPrompt : DEFAULT_SYSTEM_PROMPT;
+}
+
+function updateConversationButton() {
+  const hasHistory = hasConversationHistory;
+  clearButtonLabel.textContent = hasHistory ? "Clear" : "System";
+  clearButton
+    .querySelector("[data-lucide]")
+    ?.setAttribute(
+      "data-lucide",
+      hasHistory ? "trash-2" : "sliders-horizontal",
+    );
+  clearButton.setAttribute(
+    "aria-label",
+    hasHistory ? "Clear conversation history" : "Change system prompt",
+  );
+  clearButton.setAttribute(
+    "title",
+    hasHistory ? "Clear conversation history" : "Change system prompt",
+  );
+  lucideCreateIcons();
+}
 
 /** @type {import('@litert-lm/core').FunctionTool} */
 const javascriptTool = {
@@ -242,6 +282,7 @@ async function initAI() {
     });
     chatSession = await createChatSession();
     chatSession.delete;
+    updateConversationButton();
 
     appendMessage(
       "System",
@@ -263,8 +304,7 @@ async function createChatSession() {
       messages: [
         {
           role: "system",
-          content:
-            "You are a conversational bot running in a user browser. You can get real time details about the environment by running javascript snippets.",
+          content: getSystemPrompt(),
         },
       ],
       tools: [javascriptTool],
@@ -279,16 +319,92 @@ function clearDisplayedMessages() {
   lucideCreateIcons();
 }
 
+function openPromptModal() {
+  if (isGenerating) return;
+  const savedPrompt = localStorage.getItem(SYSTEM_PROMPT_STORAGE_KEY);
+  systemPromptInput.value = savedPrompt || "";
+  promptModal.classList.remove("hidden");
+  promptModal.classList.add("flex");
+  systemPromptInput.focus();
+}
+
+function closePromptModal() {
+  promptModal.classList.add("hidden");
+  promptModal.classList.remove("flex");
+}
+
+function confirmClearConversation() {
+  confirmClearModal.classList.remove("hidden");
+  confirmClearModal.classList.add("flex");
+  confirmClearAction.focus();
+
+  return new Promise((resolve) => {
+    const finish = (confirmed) => {
+      confirmClearModal.classList.add("hidden");
+      confirmClearModal.classList.remove("flex");
+      confirmClearCancel.removeEventListener("click", cancel);
+      confirmClearAction.removeEventListener("click", confirm);
+      confirmClearModal.removeEventListener("click", backdropCancel);
+      document.removeEventListener("keydown", escapeCancel);
+      resolve(confirmed);
+    };
+    const cancel = () => finish(false);
+    const confirm = () => finish(true);
+    const backdropCancel = (event) => {
+      if (event.target === confirmClearModal) cancel();
+    };
+    const escapeCancel = (event) => {
+      if (event.key === "Escape") cancel();
+    };
+
+    confirmClearCancel.addEventListener("click", cancel);
+    confirmClearAction.addEventListener("click", confirm);
+    confirmClearModal.addEventListener("click", backdropCancel);
+    document.addEventListener("keydown", escapeCancel);
+  });
+}
+
+async function applySystemPrompt(prompt) {
+  const trimmedPrompt = prompt.trim();
+  if (trimmedPrompt) localStorage.setItem(SYSTEM_PROMPT_STORAGE_KEY, prompt);
+  else localStorage.removeItem(SYSTEM_PROMPT_STORAGE_KEY);
+
+  promptApply.disabled = true;
+  try {
+    chatSession = await createChatSession();
+    hasConversationHistory = false;
+    clearDisplayedMessages();
+    closePromptModal();
+  } catch (error) {
+    appendMessage("System", `Failed to apply system prompt: ${error.message}`);
+  } finally {
+    promptApply.disabled = false;
+    updateConversationButton();
+    inputField.focus();
+  }
+}
+
+async function resetSystemPrompt() {
+  localStorage.removeItem(SYSTEM_PROMPT_STORAGE_KEY);
+  await applySystemPrompt("");
+}
+
 async function clearConversation() {
   if (!chatSession || isGenerating) return;
-  if (!window.confirm("Clear this conversation history?")) return;
+  if (!hasConversationHistory) {
+    openPromptModal();
+    return;
+  }
+  if (!(await confirmClearConversation())) return;
 
   clearButton.disabled = true;
   inputField.disabled = true;
   sendButton.disabled = true;
   try {
     chatSession = await createChatSession();
+    hasConversationHistory = false;
     clearDisplayedMessages();
+    updateConversationButton();
   } catch (error) {
     appendMessage("System", `Failed to clear conversation: ${error.message}`);
   } finally {
@@ -377,6 +493,8 @@ async function handleSend() {
   clearButton.disabled = true;
   isGenerating = true;
 
+  hasConversationHistory = true;
+  updateConversationButton();
   appendMessage("You", text);
   // Create the assistant bubble before awaiting the model. Some responses
   // contain only tool calls, so there may be no streamed text to trigger it.
@@ -443,6 +561,20 @@ async function handleSend() {
 
 // Bind event listeners
 clearButton.addEventListener("click", clearConversation);
+promptApply.addEventListener("click", () =>
+  applySystemPrompt(systemPromptInput.value),
+);
+promptReset.addEventListener("click", resetSystemPrompt);
+promptCancel.addEventListener("click", closePromptModal);
+promptCancelTop.addEventListener("click", closePromptModal);
+promptModal.addEventListener("click", (event) => {
+  if (event.target === promptModal) closePromptModal();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !promptModal.classList.contains("hidden")) {
+    closePromptModal();
+  }
+});
 sendButton.addEventListener("click", handleSend);
 inputField.addEventListener("input", resizeInput);
 inputField.addEventListener("keydown", (e) => {
