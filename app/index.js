@@ -14,6 +14,10 @@ const progressContainer = document.getElementById("progress-container");
 const progressBar = document.getElementById("progress-bar");
 const progressText = document.getElementById("progress-text");
 const progressLabel = document.getElementById("progress-label");
+const welcomeTemplate = getElem("template", "welcome-template");
+const youMessageTemplate = getElem("template", "you-message-template");
+const systemMessageTemplate = getElem("template", "system-message-template");
+const aiMessageTemplate = getElem("template", "ai-message-template");
 let progressHideTimer;
 
 // Turn the lightweight Lucide placeholders into consistent SVG icons.
@@ -270,11 +274,7 @@ async function createChatSession() {
 
 function clearDisplayedMessages() {
   messagesContainer.replaceChildren();
-  const welcome = document.createElement("div");
-  welcome.id = "welcome";
-  welcome.className =
-    "flex h-full min-h-64 flex-col items-center justify-center text-center";
-  welcome.innerHTML = `<div class="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-indigo-400/20 bg-indigo-500/10 text-indigo-300"><i data-lucide="message-circle" aria-hidden="true" class="h-7 w-7"></i></div><h3 class="text-base font-medium">Your private conversation starts here</h3><p class="mt-2 max-w-sm text-sm leading-6 text-slate-400">Ask anything. The model is downloaded once and then runs entirely on your device.</p>`;
+  const welcome = welcomeTemplate.content.firstElementChild.cloneNode(true);
   messagesContainer.appendChild(welcome);
   lucideCreateIcons();
 }
@@ -304,18 +304,21 @@ function appendMessage(sender, text, beforeNode) {
   const wasAtBottom = isAtBottom(messagesContainer);
   document.getElementById("welcome")?.remove();
 
-  const msgDiv = document.createElement("div");
   const isUser = sender === "You";
   const isSystem = sender === "System";
-  msgDiv.className = isSystem
-    ? "message mx-auto max-w-xl py-2 text-center text-xs italic text-slate-500"
-    : `message flex max-w-[88%] flex-col gap-1.5 rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${isUser ? "ml-auto bg-indigo-500 text-white" : "mr-auto border border-line bg-slate-900/80 text-slate-200"}`;
+  const template = isUser
+    ? youMessageTemplate
+    : isSystem
+      ? systemMessageTemplate
+      : aiMessageTemplate;
+  const msgDiv = /** @type {HTMLDivElement} */ (
+    template.content.firstElementChild.cloneNode(true)
+  );
 
   if (isSystem) {
     msgDiv.textContent = text;
   } else {
-    msgDiv.innerHTML = `<div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider ${isUser ? "text-indigo-100" : "text-indigo-300"}"><span class="grid h-5 w-5 place-items-center rounded-md ${isUser ? "bg-white/15" : "bg-indigo-500/15"}"><i data-lucide="${isUser ? "user-round" : "sparkles"}" class="h-3 w-3"></i></span>${sender}</div><span class="content"></span>${!isUser ? '<span class="generation-indicator mt-1 inline-flex items-center gap-2 text-[10px] font-normal tracking-normal text-indigo-300" role="status" aria-live="polite"><span class="generation-spinner" aria-hidden="true"></span><span class="generation-status">Thinking…</span></span><span class="generation-speed hidden text-[10px] font-normal tracking-normal text-slate-500"></span>' : ""}`;
-    msgDiv.querySelector(".content")["innerText"] = text;
+    msgDiv.querySelector(".content").textContent = text;
   }
   const beforeMessage = beforeNode?.parentElement;
   if (beforeMessage) {
