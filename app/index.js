@@ -325,7 +325,7 @@ function appendMessage(sender, text, beforeNode) {
   }
   // The message must be in the document before Lucide replaces its placeholder.
   lucideCreateIcons();
-  if (wasAtBottom || sender === "You") {
+  if (wasAtBottom || isUser) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
   return msgDiv.querySelector(".content") || msgDiv;
