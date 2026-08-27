@@ -35,6 +35,9 @@
       .thinking-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
       .thinking-dot:nth-child(2) { animation-delay: .15s; }
       .thinking-dot:nth-child(3) { animation-delay: .3s; }
+      @keyframes generation-spin { to { transform: rotate(360deg); } }
+      .generation-spinner { width: .7rem; height: .7rem; border: 2px solid rgba(139,124,255,.25); border-top-color: #a9a0ff; border-radius: 999px; animation: generation-spin .8s linear infinite; }
+      @media (prefers-reduced-motion: reduce) { .generation-spinner { animation-duration: 1.8s; } }
     </style>
   </head>
   <body class="max-h-dvh font-mono text-slate-100 antialiased selection:bg-electric/30">

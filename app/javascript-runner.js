@@ -20,7 +20,11 @@ self.onmessage = async function (event) {
         return `[Function: ${arg.name || "anonymous"}]`;
       if (arg instanceof Error) return arg.stack || arg.message;
       if (typeof arg === "symbol") return arg.toString();
-      return arg;
+      try {
+        return JSON.parse(JSON.stringify(arg));
+      } catch (_) {
+        return String(arg);
+      }
     });
     logs.push({ level, args: safeArgs });
   }
@@ -59,12 +63,12 @@ self.onmessage = async function (event) {
         : String(result);
   }
 
-  logs.forEach((log) => {
-    log.args = log.args.map(String);
-  });
-
   const value = {
-    logs: !logs.length ? undefined : logs.length === 1 ? logs[0].args : logs,
+    logs: !logs.length
+      ? undefined
+      : logs.length === 1 && logs[0].level === "log"
+        ? logs[0].args
+        : logs,
     result: safeResult,
   };
 

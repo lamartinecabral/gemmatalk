@@ -144,20 +144,31 @@ function updateGenerationSpeed(responseNode, stats) {
 
   const tokensPerSecond = stats.tokens / stats.seconds;
   speedNode.textContent = `${tokensPerSecond.toFixed(1)} tokens/s · ${stats.tokens} tokens`;
+  speedNode.classList.remove("hidden");
+}
+
+function setGenerationState(responseNode, label, active = true) {
+  const message = responseNode.parentElement;
+  const indicator = message.querySelector(".generation-indicator");
+  const status = message.querySelector(".generation-status");
+  if (!indicator || !status) return;
+
+  status.textContent = label;
+  indicator.classList.toggle("hidden", !active);
 }
 
 async function streamModelMessage(message, responseNode, stats) {
-  const getResponseNode = () => {
-    if (typeof responseNode === "function") return responseNode();
-    return responseNode;
-  };
+  setGenerationState(responseNode, "Thinking…");
   /** @type {import('@litert-lm/core').ToolCall[]} */
   let toolCalls = [];
   for await (const chunk of chatSession.sendMessageStreaming(message)) {
     if (chunk.tool_calls) toolCalls = chunk.tool_calls;
     for (const content of chunk.content || []) {
       if (content["type"] === "text") {
-        getResponseNode().innerText += String(content["text"]);
+        // Text has started streaming, so remove the waiting indicator
+        // immediately rather than leaving "Thinking…" visible.
+        setGenerationState(responseNode, "", false);
+        responseNode.innerText += String(content["text"]);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
       }
     }
@@ -172,8 +183,13 @@ async function streamModelMessage(message, responseNode, stats) {
     stats.tokens += benchmark.lastDecodeTokenCount;
     stats.seconds +=
       benchmark.lastDecodeTokenCount / benchmark.lastDecodeTokensPerSecond;
-    updateGenerationSpeed(getResponseNode(), stats);
+    updateGenerationSpeed(responseNode, stats);
   }
+  setGenerationState(
+    responseNode,
+    toolCalls.length ? "Preparing tool call…" : "",
+    !toolCalls.length ? false : true,
+  );
   return toolCalls;
 }
 
@@ -266,7 +282,7 @@ async function clearConversation() {
 }
 
 // 3. Handle Chat Interactions
-function appendMessage(sender, text) {
+function appendMessage(sender, text, beforeNode) {
   document.getElementById("welcome")?.remove();
 
   const msgDiv = document.createElement("div");
@@ -279,10 +295,15 @@ function appendMessage(sender, text) {
   if (isSystem) {
     msgDiv.textContent = text;
   } else {
-    msgDiv.innerHTML = `<div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider ${isUser ? "text-indigo-100" : "text-indigo-300"}"><span class="grid h-5 w-5 place-items-center rounded-md ${isUser ? "bg-white/15" : "bg-indigo-500/15"}"><i data-lucide="${isUser ? "user-round" : "sparkles"}" class="h-3 w-3"></i></span>${sender}</div><span class="content"></span>${!isUser ? '<span class="generation-speed text-[10px] font-normal tracking-normal text-slate-500">Generating…</span>' : ""}`;
+    msgDiv.innerHTML = `<div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider ${isUser ? "text-indigo-100" : "text-indigo-300"}"><span class="grid h-5 w-5 place-items-center rounded-md ${isUser ? "bg-white/15" : "bg-indigo-500/15"}"><i data-lucide="${isUser ? "user-round" : "sparkles"}" class="h-3 w-3"></i></span>${sender}</div><span class="content"></span>${!isUser ? '<span class="generation-indicator mt-1 inline-flex items-center gap-2 text-[10px] font-normal tracking-normal text-indigo-300" role="status" aria-live="polite"><span class="generation-spinner" aria-hidden="true"></span><span class="generation-status">Thinking…</span></span><span class="generation-speed hidden text-[10px] font-normal tracking-normal text-slate-500"></span>' : ""}`;
     msgDiv.querySelector(".content")["innerText"] = text;
   }
-  messagesContainer.appendChild(msgDiv);
+  const beforeMessage = beforeNode?.parentElement;
+  if (beforeMessage) {
+    messagesContainer.insertBefore(msgDiv, beforeMessage);
+  } else {
+    messagesContainer.appendChild(msgDiv);
+  }
   // The message must be in the document before Lucide replaces its placeholder.
   lucideCreateIcons();
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -307,12 +328,10 @@ async function handleSend() {
   isGenerating = true;
 
   appendMessage("You", text);
-  let aiResponseNode;
+  // Create the assistant bubble before awaiting the model. Some responses
+  // contain only tool calls, so there may be no streamed text to trigger it.
+  const aiResponseNode = appendMessage("AI", "");
   const generationStats = { tokens: 0, seconds: 0 };
-  const getAiResponseNode = () => {
-    if (aiResponseNode) return aiResponseNode;
-    return (aiResponseNode = appendMessage("AI", ""));
-  };
 
   try {
     /** @type {import('@litert-lm/core').MessageLike} */
@@ -320,7 +339,7 @@ async function handleSend() {
     for (let round = 0; round < 5; round += 1) {
       const toolCalls = await streamModelMessage(
         message,
-        getAiResponseNode,
+        aiResponseNode,
         generationStats,
       );
       if (!toolCalls.length) break;
@@ -328,7 +347,15 @@ async function handleSend() {
       /** @type {import('@litert-lm/core').ToolResponsePart[]} */
       const toolResults = [];
       for (const toolCall of toolCalls) {
-        appendMessage("System", `Running ${toolCall.function.name}…`);
+        setGenerationState(
+          aiResponseNode,
+          `Running ${toolCall.function.name}…`,
+        );
+        appendMessage(
+          "System",
+          `Running ${toolCall.function.name}…`,
+          aiResponseNode,
+        );
         try {
           const result = await executeTool(toolCall);
           console.log({ result });
@@ -350,8 +377,9 @@ async function handleSend() {
       message = { role: "tool", content: toolResults };
     }
   } catch (err) {
-    getAiResponseNode().innerText += `\n\n[Error: ${err.message}]`;
+    aiResponseNode.textContent += `\n\n[Error: ${err.message}]`;
   } finally {
+    setGenerationState(aiResponseNode, "", false);
     isGenerating = false;
     inputField.disabled = false;
     sendButton.disabled = false;
