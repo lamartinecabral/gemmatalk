@@ -137,14 +137,25 @@ async function executeTool(toolCall) {
   return runJavascript(argumentsObject.code);
 }
 
+function isAtBottom(container) {
+  // Allow for fractional scroll positions and small rounding differences.
+  return (
+    container.scrollHeight - container.clientHeight - container.scrollTop <= 1
+  );
+}
+
 function updateGenerationSpeed(responseNode, stats) {
   const speedNode =
     responseNode.parentElement.querySelector(".generation-speed");
   if (!speedNode || !stats.tokens) return;
 
+  const wasAtBottom = isAtBottom(messagesContainer);
   const tokensPerSecond = stats.tokens / stats.seconds;
   speedNode.textContent = `${tokensPerSecond.toFixed(1)} tokens/s · ${stats.tokens} tokens`;
   speedNode.classList.remove("hidden");
+  if (wasAtBottom) {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
 }
 
 function setGenerationState(responseNode, label, active = true) {
@@ -153,8 +164,12 @@ function setGenerationState(responseNode, label, active = true) {
   const status = message.querySelector(".generation-status");
   if (!indicator || !status) return;
 
+  const wasAtBottom = isAtBottom(messagesContainer);
   status.textContent = label;
   indicator.classList.toggle("hidden", !active);
+  if (wasAtBottom) {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
 }
 
 async function streamModelMessage(message, responseNode, stats) {
@@ -168,8 +183,11 @@ async function streamModelMessage(message, responseNode, stats) {
         // Text has started streaming, so remove the waiting indicator
         // immediately rather than leaving "Thinking…" visible.
         setGenerationState(responseNode, "", false);
+        const wasAtBottom = isAtBottom(messagesContainer);
         responseNode.innerText += String(content["text"]);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        if (wasAtBottom) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
       }
     }
   }
@@ -283,6 +301,7 @@ async function clearConversation() {
 
 // 3. Handle Chat Interactions
 function appendMessage(sender, text, beforeNode) {
+  const wasAtBottom = isAtBottom(messagesContainer);
   document.getElementById("welcome")?.remove();
 
   const msgDiv = document.createElement("div");
@@ -306,7 +325,9 @@ function appendMessage(sender, text, beforeNode) {
   }
   // The message must be in the document before Lucide replaces its placeholder.
   lucideCreateIcons();
-  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  if (wasAtBottom) {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
   return msgDiv.querySelector(".content") || msgDiv;
 }
 
