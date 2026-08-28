@@ -16,6 +16,9 @@ const messagesContainer = document.getElementById("messages");
 const inputField = getElem("textarea", "userInput");
 const sendButton = getElem("button", "sendBtn");
 const clearButton = getElem("button", "clearBtn");
+const aboutButton = getElem("button", "aboutBtn");
+const aboutPopover = getElem("div", "aboutPopover");
+const aboutClose = getElem("button", "aboutClose");
 const confirmClearModal = getElem("div", "confirmClearModal");
 const confirmClearCancel = getElem("button", "confirmClearCancel");
 const confirmClearAction = getElem("button", "confirmClearAction");
@@ -186,6 +189,16 @@ function clearDisplayedMessages() {
   const welcome = welcomeTemplate.content.firstElementChild.cloneNode(true);
   messagesContainer.appendChild(welcome);
   lucideCreateIcons();
+}
+
+function openAboutPopover() {
+  aboutPopover.classList.remove("hidden");
+  aboutButton.setAttribute("aria-expanded", "true");
+}
+
+function closeAboutPopover() {
+  aboutPopover.classList.add("hidden");
+  aboutButton.setAttribute("aria-expanded", "false");
 }
 
 function openPromptModal() {
@@ -423,6 +436,26 @@ async function handleSend() {
 }
 
 // Bind event listeners
+aboutButton.addEventListener("click", () => {
+  if (aboutPopover.classList.contains("hidden")) openAboutPopover();
+  else closeAboutPopover();
+});
+aboutClose.addEventListener("click", () => {
+  closeAboutPopover();
+  aboutButton.focus();
+});
+document.addEventListener("click", (event) => {
+  const target = /** @type {Node} */ (event.target);
+  if (!aboutPopover.contains(target) && !aboutButton.contains(target)) {
+    closeAboutPopover();
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !aboutPopover.classList.contains("hidden")) {
+    closeAboutPopover();
+    aboutButton.focus();
+  }
+});
 clearButton.addEventListener("click", clearConversation);
 promptApply.addEventListener("click", () =>
   applySystemPrompt(systemPromptInput.value),
