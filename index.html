@@ -46,10 +46,10 @@
         <div class="flex items-center justify-between border-b border-line px-5 py-4 sm:px-7">
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="font-semibold tracking-tight">Chat with Gemma</h2>
+              <h2 class="font-semibold tracking-tight">GemmaTalk</h2>
               <span class="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-amber-200" title="GemmaTalk is currently in beta" aria-label="Beta version">Beta</span>
             </div>
-            <p class="mt-0.5 text-xs text-slate-400">Gemma 4 E2B · no data leaves this device</p>
+            <p class="mt-0.5 text-xs text-slate-400">100% Local AI · Powered by Gemma 4 E2B</p>
           </div>
           <div class="relative flex items-center gap-2 text-xs text-slate-500">
             <button id="aboutBtn" type="button" aria-expanded="false" aria-controls="aboutPopover" class="group flex h-8 items-center gap-1.5 rounded-lg border border-line px-2.5 text-slate-400 transition hover:border-indigo-400/50 hover:bg-indigo-500/10 hover:text-indigo-300 active:scale-95">
@@ -62,13 +62,14 @@
                 </div>
                 <div class="min-w-0">
                   <h3 id="aboutPopoverTitle" class="font-sans text-sm font-semibold text-slate-100">About GemmaTalk</h3>
-                  <p class="mt-1 text-[11px] leading-5 text-slate-400">Private AI chat powered by Gemma 4 E2B and WebGPU.</p>
+                  <p class="mt-1 text-[11px] leading-5 text-slate-400">A private, browser-based chat powered by the Gemma 4 E2B model.</p>
                 </div>
                 <button id="aboutClose" type="button" aria-label="Close about" class="ml-auto shrink-0 rounded-lg p-1 text-slate-500 transition hover:bg-slate-800 hover:text-slate-100">✕</button>
               </div>
               <div class="mt-4 space-y-2 border-t border-line pt-3 text-[11px] leading-5 text-slate-400">
-                <p>The model runs directly in your browser, so your messages stay on this device and are not sent to an application server.</p>
-                <p>The approximately 1.9 GB model is downloaded once and cached for offline use. WebGPU support is required.</p>
+                <p>Runs 100% locally in your browser using WebAssembly and WebGPU. Your prompts and responses never leave your device.</p>
+                <p><strong class="font-semibold text-amber-200">AI may generate incorrect details.</strong> Specially with small models. Verify key facts before relying on them.</p>
+                <p>Requires a WebGPU-compatible browser. The ~1.9 GB model is downloaded once and cached for offline use.</p>
               </div>
               <div class="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-line pt-3 text-[10px]">
                 <a href="https://github.com/lamartinecabral/gemmatalk" target="_blank" rel="noreferrer" class="text-indigo-300 transition hover:text-indigo-200">View source ↗</a>
