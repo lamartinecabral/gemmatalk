@@ -63,6 +63,7 @@ GemmaTalk exposes one tool to the model, `run_javascript`, for calculations and 
 ├── app/
 │   ├── index.js                   Application startup and chat/tool loop
 │   ├── javascript-runner.js       Web Worker for model-requested JavaScript
+│   ├── model-loader.js            Setup service worker and track load progress
 │   ├── tools.js                   Model tool definitions
 │   └── utils.js                   Utilities and helpers
 ├── service-worker.js              Model caching and download/cache-load progress tracking

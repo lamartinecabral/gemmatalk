@@ -1,3 +1,4 @@
+// Turn the lightweight Lucide placeholders into consistent SVG icons.
 export const lucideCreateIcons = () => {
   window.lucide.createIcons();
 };
@@ -9,3 +10,10 @@ export const getElem = (tag, id) => {
     throw new Error(`element ${tag}#${id} not found`);
   return el;
 };
+
+export function isAtBottom(container) {
+  // Allow for fractional scroll positions and small rounding differences.
+  return (
+    container.scrollHeight - container.clientHeight - container.scrollTop <= 1
+  );
+}

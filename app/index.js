@@ -1,6 +1,7 @@
 // @ts-check
 import { Engine } from "@litert-lm/core";
-import { lucideCreateIcons, getElem } from "./utils.js";
+import { lucideCreateIcons, getElem, isAtBottom } from "./utils.js";
+import { setupServiceWorker } from "./model-loader.js";
 import {
   createJavascriptWorker,
   executeTool,
@@ -25,49 +26,10 @@ const promptApply = getElem("button", "promptApply");
 const promptCancel = getElem("button", "promptCancel");
 const promptCancelTop = getElem("button", "promptCancelTop");
 const promptReset = getElem("button", "promptReset");
-const progressContainer = document.getElementById("progress-container");
-const progressBar = document.getElementById("progress-bar");
-const progressText = document.getElementById("progress-text");
-const progressLabel = document.getElementById("progress-label");
 const welcomeTemplate = getElem("template", "welcome-template");
 const youMessageTemplate = getElem("template", "you-message-template");
 const systemMessageTemplate = getElem("template", "system-message-template");
 const aiMessageTemplate = getElem("template", "ai-message-template");
-let progressHideTimer;
-
-// Turn the lightweight Lucide placeholders into consistent SVG icons.
-lucideCreateIcons();
-
-// Listen for progress messages from the Service Worker. A cached response is
-// streamed into LiteRT-LM too, so it gets its own progress state rather than
-// appearing to finish instantly when the cache lookup succeeds.
-navigator.serviceWorker.addEventListener("message", (event) => {
-  const progress = event.data;
-  if (
-    !progress ||
-    !["DOWNLOAD_PROGRESS", "CACHE_LOAD_PROGRESS"].includes(progress.type)
-  ) {
-    return;
-  }
-
-  const { loaded, total, type } = progress;
-  const percent = Math.min(Math.round((loaded / total) * 100), 100);
-  progressLabel.lastChild.textContent =
-    type === "CACHE_LOAD_PROGRESS"
-      ? " Loading model from cache…"
-      : " Downloading model for offline use…";
-
-  clearTimeout(progressHideTimer);
-  progressContainer.classList.remove("hidden");
-  progressBar.style.width = `${percent}%`;
-  progressText.innerText = `${percent}% (${(loaded / 1024 / 1024).toFixed(1)} MB / ${(total / 1024 / 1024).toFixed(1)} MB)`;
-
-  if (percent >= 100) {
-    progressHideTimer = setTimeout(() => {
-      progressContainer.classList.add("hidden");
-    }, 800);
-  }
-});
 
 /** @type {Engine} */
 let aiEngine;
@@ -103,13 +65,6 @@ function updateConversationButton() {
     hasHistory ? "Clear conversation history" : "Change system prompt",
   );
   lucideCreateIcons();
-}
-
-function isAtBottom(container) {
-  // Allow for fractional scroll positions and small rounding differences.
-  return (
-    container.scrollHeight - container.clientHeight - container.scrollTop <= 1
-  );
 }
 
 function updateGenerationSpeed(responseNode, stats) {
@@ -179,21 +134,11 @@ async function streamModelMessage(message, responseNode, stats) {
   return toolCalls;
 }
 
-// 1. Register the Service Worker & wait for it to take over
-async function setupServiceWorker() {
-  if ("serviceWorker" in navigator) {
-    await navigator.serviceWorker.register("service-worker.js");
-    await navigator.serviceWorker.ready;
-
-    // Hard reloads prevent the service from taking control. A normal reload fixes it.
-    if (!navigator.serviceWorker.controller) location.reload();
-
-    console.log("Service Worker is active and controlling requests.");
-  }
-}
-
-// 2. Initialize the LiteRT-LM Engine
+// Initialize the LiteRT-LM Engine
 async function initAI() {
+  // Register the Service Worker & wait for it to take over
+  await setupServiceWorker();
+
   appendMessage(
     "System",
     "Initializing WebGPU and checking cache for Gemma 4 E2B... (Downloading 1.9GB if not cached).",
@@ -339,7 +284,7 @@ async function clearConversation() {
   }
 }
 
-// 3. Handle Chat Interactions
+// Handle Chat Interactions
 function appendMessage(sender, text, beforeNode) {
   const wasAtBottom = isAtBottom(messagesContainer);
   document.getElementById("welcome")?.remove();
@@ -399,12 +344,6 @@ async function copyResponse(button) {
     button.setAttribute("title", "Copy response");
   }, 1500);
 }
-
-messagesContainer.addEventListener("click", (event) => {
-  const target = /** @type {Element} */ (event.target);
-  const copyButton = target.closest(".copy-response");
-  if (copyButton) copyResponse(/** @type {HTMLButtonElement} */ (copyButton));
-});
 
 async function handleSend() {
   const text = inputField.value.trim();
@@ -507,9 +446,14 @@ inputField.addEventListener("keydown", (e) => {
     handleSend();
   }
 });
+messagesContainer.addEventListener("click", (event) => {
+  const target = /** @type {Element} */ (event.target);
+  const copyButton = target.closest(".copy-response");
+  if (copyButton) copyResponse(copyButton);
+});
 
 // Boot the application
+lucideCreateIcons();
 createJavascriptWorker();
 resizeInput();
-await setupServiceWorker();
 await initAI();
