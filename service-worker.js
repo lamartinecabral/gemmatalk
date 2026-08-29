@@ -1,12 +1,54 @@
 const CACHE_NAME = "litert-gemma-cache-v1";
 const MODEL_URL_PATTERN = /\.litertlm$/;
 
+const ALLOWED_ORIGINS = [
+  "https://cdn.tailwindcss.com",
+  "https://unpkg.com",
+  "https://cdn.jsdelivr.net",
+];
+
 self.addEventListener("install", (event) => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(clients.claim()));
 
 self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+
+  const requestUrl = new URL(event.request.url);
+  const isSameOrigin = requestUrl.origin === self.location.origin;
+  const isAllowedOrigin = ALLOWED_ORIGINS.includes(requestUrl.origin);
+
+  if (isSameOrigin || isAllowedOrigin) {
+    return event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          // Check for standard 200 OK or valid opaque responses (status 0)
+          const isCacheable =
+            networkResponse &&
+            (networkResponse.status === 200 ||
+              networkResponse.type === "opaque");
+
+          if (isCacheable) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              // Store final response under original event.request
+              cache.put(event.request, responseToCache).catch((err) => {
+                console.error("Failed to store in cache:", err);
+              });
+            });
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cachedResponse = await caches.match(event.request);
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+        }),
+    );
+  }
+
   if (MODEL_URL_PATTERN.test(event.request.url)) {
-    event.respondWith(
+    return event.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {
         const cachedResponse = await cache.match(event.request);
         if (cachedResponse) {
@@ -14,19 +56,14 @@ self.addEventListener("fetch", (event) => {
           // Storage. Track that response body separately from a network
           // download so the UI can show loading progress on later launches.
           const totalBytes =
-            Number(cachedResponse.headers.get("Content-Length")) ||
-            1930000000;
+            Number(cachedResponse.headers.get("Content-Length")) || 1930000000;
           let loadedBytes = 0;
           broadcastProgress("CACHE_LOAD_PROGRESS", 0, totalBytes);
 
           const progressStream = new TransformStream({
             transform(chunk, controller) {
               loadedBytes += chunk.byteLength;
-              broadcastProgress(
-                "CACHE_LOAD_PROGRESS",
-                loadedBytes,
-                totalBytes,
-              );
+              broadcastProgress("CACHE_LOAD_PROGRESS", loadedBytes, totalBytes);
               controller.enqueue(chunk);
             },
           });
