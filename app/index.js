@@ -161,9 +161,6 @@ async function initAI() {
   );
 
   try {
-    // Register the Service Worker & wait for it to take over
-    await setupServiceWorker();
-
     aiEngine = await Engine.create({
       model: MODEL_URL,
       benchmarkEnabled: true,
@@ -544,4 +541,6 @@ messagesContainer.addEventListener("click", (event) => {
 lucideCreateIcons();
 createJavascriptWorker();
 resizeInput();
+// Register the Service Worker & wait for it to take over
+await setupServiceWorker();
 showStartButton();
