@@ -30,6 +30,7 @@ const promptCancel = getElem("button", "promptCancel");
 const promptCancelTop = getElem("button", "promptCancelTop");
 const promptReset = getElem("button", "promptReset");
 const welcomeTemplate = getElem("template", "welcome-template");
+const startButtonTemplate = getElem("template", "start-button-template");
 const youMessageTemplate = getElem("template", "you-message-template");
 const systemMessageTemplate = getElem("template", "system-message-template");
 const aiMessageTemplate = getElem("template", "ai-message-template");
@@ -205,15 +206,23 @@ async function createChatSession() {
   });
 }
 
-function clearDisplayedMessages(showStartButton = false) {
+function clearDisplayedMessages() {
   messagesContainer.replaceChildren();
   const welcome = /** @type {HTMLElement} */ (
     welcomeTemplate.content.firstElementChild.cloneNode(true)
   );
-  if (!showStartButton) {
-    welcome.querySelector("#startup-status")?.remove();
-    welcome.querySelector("#startModelBtn")?.remove();
-  }
+  messagesContainer.appendChild(welcome);
+  lucideCreateIcons();
+}
+
+function showStartButton() {
+  messagesContainer.replaceChildren();
+  const welcome = /** @type {HTMLElement} */ (
+    welcomeTemplate.content.firstElementChild.cloneNode(true)
+  );
+  startButtonTemplate.content.childNodes.forEach((node) =>
+    welcome.appendChild(node.cloneNode(true)),
+  );
   messagesContainer.appendChild(welcome);
   lucideCreateIcons();
 }
@@ -521,4 +530,4 @@ messagesContainer.addEventListener("click", (event) => {
 lucideCreateIcons();
 createJavascriptWorker();
 resizeInput();
-clearDisplayedMessages(true);
+showStartButton();

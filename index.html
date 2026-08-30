@@ -99,11 +99,14 @@
             </div>
             <h3 class="text-base font-medium">Your private conversation starts here</h3>
             <p class="mt-2 max-w-sm text-sm leading-6 text-slate-400">Ask anything. The model is downloaded once and then runs entirely on your device.</p>
-            <p id="startup-status" class="mt-2 border-t border-line pt-2 max-w-sm text-xs leading-6 text-amber-200"><strong>The model uses about 1.9 GB of storage and memory. Start it when you’re ready.</strong></p>
-            <button id="startModelBtn" type="button" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-950/30 transition hover:bg-indigo-400 active:scale-95 disabled:cursor-wait disabled:opacity-60">
-              <i data-lucide="play" aria-hidden="true" class="h-4 w-4"></i><span>Start model</span>
-            </button>
           </div>
+        </template>
+
+        <template id="start-button-template">
+          <p id="startup-status" class="mt-2 border-t border-line pt-2 max-w-sm text-xs leading-6 text-amber-200"><strong>The model uses about 1.9 GB of storage and memory. Start it when you’re ready.</strong></p>
+          <button id="startModelBtn" type="button" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-950/30 transition hover:bg-indigo-400 active:scale-95 disabled:cursor-wait disabled:opacity-60">
+            <i data-lucide="play" aria-hidden="true" class="h-4 w-4"></i><span>Start model</span>
+          </button>
         </template>
 
         <template id="you-message-template">
