@@ -2,12 +2,7 @@
 import { Engine } from "@litert-lm/core";
 import { lucideCreateIcons, getElem, isAtBottom } from "./utils.js";
 import { setupServiceWorker } from "./model-loader.js";
-import {
-  createJavascriptWorker,
-  executeTool,
-  javascriptTool,
-  systemDetailsTool,
-} from "./tools.js";
+import { allTools, createJavascriptWorker, executeTool } from "./tools.js";
 
 // The WebGPU compatible Gemma 4 E2B weights file (Approx 1.9GB)
 const MODEL_URL =
@@ -196,7 +191,7 @@ async function createChatSession() {
           content: getSystemPrompt(),
         },
       ],
-      tools: [javascriptTool, systemDetailsTool],
+      tools: allTools,
     },
   });
 }

@@ -1,20 +1,5 @@
 /** @type {import('@litert-lm/core').FunctionTool} */
-export const systemDetailsTool = {
-  type: "function",
-  function: {
-    name: "get_system_details",
-    description:
-      "Get information about the current browser and device from the Navigator API. This tool takes no arguments.",
-    parameters: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
-  },
-};
-
-/** @type {import('@litert-lm/core').FunctionTool} */
-export const javascriptTool = {
+const javascriptTool = {
   type: "function",
   function: {
     name: "run_javascript",
@@ -59,17 +44,6 @@ export function createJavascriptWorker() {
   });
 }
 
-export function getSystemDetails() {
-  return {
-    userAgent: navigator.userAgent,
-    platform: navigator.platform,
-    language: navigator.language,
-    onLine: navigator.onLine,
-    hardwareConcurrency: navigator.hardwareConcurrency,
-    deviceMemory: navigator.deviceMemory ?? null,
-  };
-}
-
 function runJavascript(code = "") {
   console.log({ code });
   return new Promise((resolve, reject) => {
@@ -86,15 +60,13 @@ function runJavascript(code = "") {
   });
 }
 
+export const allTools = [javascriptTool];
+
 export async function executeTool(toolCall) {
   const name = toolCall?.function?.name;
   let argumentsObject = toolCall?.function?.arguments || {};
   if (typeof argumentsObject === "string") {
     argumentsObject = JSON.parse(argumentsObject);
-  }
-
-  if (name === systemDetailsTool.function.name) {
-    return getSystemDetails();
   }
 
   if (name === javascriptTool.function.name) {
