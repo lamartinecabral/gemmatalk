@@ -1,4 +1,19 @@
 /** @type {import('@litert-lm/core').FunctionTool} */
+export const systemDetailsTool = {
+  type: "function",
+  function: {
+    name: "get_system_details",
+    description:
+      "Get information about the current browser and device from the Navigator API. This tool takes no arguments.",
+    parameters: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+};
+
+/** @type {import('@litert-lm/core').FunctionTool} */
 export const javascriptTool = {
   type: "function",
   function: {
@@ -44,6 +59,24 @@ export function createJavascriptWorker() {
   });
 }
 
+export function getSystemDetails() {
+  const { navigator } = globalThis;
+  const navigatorWithMemory =
+    /** @type {Navigator & { deviceMemory?: number }} */ (navigator);
+
+  return {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    languages: [...navigator.languages],
+    hardwareConcurrency: navigator.hardwareConcurrency,
+    deviceMemory: navigatorWithMemory.deviceMemory ?? null,
+    maxTouchPoints: navigator.maxTouchPoints,
+    cookieEnabled: navigator.cookieEnabled,
+    onLine: navigator.onLine,
+  };
+}
+
 function runJavascript(code = "") {
   console.log({ code });
   return new Promise((resolve, reject) => {
@@ -67,12 +100,17 @@ export async function executeTool(toolCall) {
     argumentsObject = JSON.parse(argumentsObject);
   }
 
-  if (name !== javascriptTool.function.name) {
-    throw new Error(`Unknown tool: ${name || "(missing name)"}`);
-  }
-  if (typeof argumentsObject.code !== "string") {
-    throw new Error("run_javascript requires a string 'code' argument.");
+  if (name === systemDetailsTool.function.name) {
+    return getSystemDetails();
   }
 
-  return runJavascript(argumentsObject.code);
+  if (name === javascriptTool.function.name) {
+    if (typeof argumentsObject.code !== "string") {
+      throw new Error("run_javascript requires a string 'code' argument.");
+    }
+
+    return runJavascript(argumentsObject.code);
+  }
+
+  throw new Error(`Unknown tool: ${name || "(missing name)"}`);
 }

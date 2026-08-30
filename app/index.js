@@ -6,6 +6,7 @@ import {
   createJavascriptWorker,
   executeTool,
   javascriptTool,
+  systemDetailsTool,
 } from "./tools.js";
 
 // The WebGPU compatible Gemma 4 E2B weights file (Approx 1.9GB)
@@ -199,7 +200,7 @@ async function createChatSession() {
           content: getSystemPrompt(),
         },
       ],
-      tools: [javascriptTool],
+      tools: [javascriptTool, systemDetailsTool],
     },
   });
 }
