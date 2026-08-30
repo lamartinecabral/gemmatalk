@@ -139,17 +139,15 @@ async function streamModelMessage(message, responseNode, stats) {
   return toolCalls;
 }
 
-function setStartupState(message, loading = false) {
-  const status = document.getElementById("startup-status");
-  const startButton = /** @type {HTMLButtonElement|null} */ (
-    document.getElementById("startModelBtn")
-  );
-  if (status) status.textContent = message;
-  if (startButton) {
-    startButton.disabled = loading;
-    const label = startButton.querySelector("span");
-    if (label) label.textContent = loading ? "Loading model…" : "Start model";
-  }
+function setStartupState(message, btnOptions = {}) {
+  const status = getElem("p", "startup-status");
+  const startButton = getElem("button", "startModelBtn");
+  status.textContent = message;
+
+  startButton.disabled = !!btnOptions.disable;
+  startButton.classList.toggle("hidden", !!btnOptions.hide);
+  const label = startButton.querySelector("span");
+  if (label) label.textContent = btnOptions.label ?? "Start model";
 }
 
 // Initialize the LiteRT-LM Engine only after the user asks us to. This avoids
@@ -159,7 +157,7 @@ async function initAI() {
   isInitializing = true;
   setStartupState(
     "Initializing WebGPU and checking the cache. The first start may download about 1.9 GB.",
-    true,
+    { label: "Loading model…", disable: true },
   );
 
   try {
@@ -185,7 +183,7 @@ async function initAI() {
   } catch (err) {
     // Keep the welcome view so the user can retry without refreshing the page.
     const message = err instanceof Error ? err.message : String(err);
-    setStartupState(`Failed to load model: ${message}`, false);
+    setStartupState(`Failed to load model: ${message}`);
     console.error(err);
   } finally {
     isInitializing = false;
@@ -215,7 +213,7 @@ function clearDisplayedMessages() {
   lucideCreateIcons();
 }
 
-function showStartButton() {
+async function showStartButton() {
   messagesContainer.replaceChildren();
   const welcome = /** @type {HTMLElement} */ (
     welcomeTemplate.content.firstElementChild.cloneNode(true)
@@ -223,6 +221,22 @@ function showStartButton() {
   startButtonTemplate.content.childNodes.forEach((node) =>
     welcome.appendChild(node.cloneNode(true)),
   );
+
+  Promise.resolve(navigator.gpu?.requestAdapter())
+    .then((adapter) => {
+      if (!adapter)
+        setStartupState(
+          "WebGPU is not available in this browser or on this device. GemmaTalk cannot be started.",
+          { hide: true },
+        );
+    })
+    .catch((err) => {
+      setStartupState(`Unable to request a WebGPU adapter. ${err}`, {
+        hide: true,
+      });
+      console.error("Unable to request a WebGPU adapter.", err);
+    });
+
   messagesContainer.appendChild(welcome);
   lucideCreateIcons();
 }
