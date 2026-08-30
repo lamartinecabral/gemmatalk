@@ -40,6 +40,7 @@ let aiEngine;
 let chatSession;
 let isGenerating = false;
 let hasConversationHistory = false;
+let isInitializing = false;
 
 const DEFAULT_SYSTEM_PROMPT =
   "You are a conversational bot running in a user browser. You can get real time details about the environment by running javascript snippets.";
@@ -137,17 +138,33 @@ async function streamModelMessage(message, responseNode, stats) {
   return toolCalls;
 }
 
-// Initialize the LiteRT-LM Engine
-async function initAI() {
-  // Register the Service Worker & wait for it to take over
-  await setupServiceWorker();
+function setStartupState(message, loading = false) {
+  const status = document.getElementById("startup-status");
+  const startButton = /** @type {HTMLButtonElement|null} */ (
+    document.getElementById("startModelBtn")
+  );
+  if (status) status.textContent = message;
+  if (startButton) {
+    startButton.disabled = loading;
+    const label = startButton.querySelector("span");
+    if (label) label.textContent = loading ? "Loading model…" : "Start model";
+  }
+}
 
-  appendMessage(
-    "System",
-    "Initializing WebGPU and checking cache for Gemma 4 E2B... (Downloading 1.9GB if not cached).",
+// Initialize the LiteRT-LM Engine only after the user asks us to. This avoids
+// allocating the model's substantial WebGPU/memory footprint on page load.
+async function initAI() {
+  if (isInitializing || aiEngine) return;
+  isInitializing = true;
+  setStartupState(
+    "Initializing WebGPU and checking the cache. The first start may download about 1.9 GB.",
+    true,
   );
 
   try {
+    // Register the Service Worker & wait for it to take over
+    await setupServiceWorker();
+
     aiEngine = await Engine.create({
       model: MODEL_URL,
       benchmarkEnabled: true,
@@ -165,8 +182,12 @@ async function initAI() {
     clearButton.disabled = false;
     inputField.focus();
   } catch (err) {
-    appendMessage("System", `Failed to load model: ${err.message}`);
+    // Keep the welcome view so the user can retry without refreshing the page.
+    const message = err instanceof Error ? err.message : String(err);
+    setStartupState(`Failed to load model: ${message}`, false);
     console.error(err);
+  } finally {
+    isInitializing = false;
   }
 }
 
@@ -184,9 +205,15 @@ async function createChatSession() {
   });
 }
 
-function clearDisplayedMessages() {
+function clearDisplayedMessages(showStartButton = false) {
   messagesContainer.replaceChildren();
-  const welcome = welcomeTemplate.content.firstElementChild.cloneNode(true);
+  const welcome = /** @type {HTMLElement} */ (
+    welcomeTemplate.content.firstElementChild.cloneNode(true)
+  );
+  if (!showStartButton) {
+    welcome.querySelector("#startup-status")?.remove();
+    welcome.querySelector("#startModelBtn")?.remove();
+  }
   messagesContainer.appendChild(welcome);
   lucideCreateIcons();
 }
@@ -482,11 +509,16 @@ inputField.addEventListener("keydown", (e) => {
 messagesContainer.addEventListener("click", (event) => {
   const target = /** @type {Element} */ (event.target);
   const copyButton = target.closest(".copy-response");
-  if (copyButton) copyResponse(copyButton);
+  if (copyButton) {
+    copyResponse(copyButton);
+    return;
+  }
+  if (target.closest("#startModelBtn")) initAI();
 });
 
-// Boot the application
+// Boot the application without loading the model. Loading starts only after
+// an explicit click on the welcome screen.
 lucideCreateIcons();
 createJavascriptWorker();
 resizeInput();
-await initAI();
+clearDisplayedMessages(true);

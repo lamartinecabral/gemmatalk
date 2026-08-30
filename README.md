@@ -40,7 +40,7 @@ npm run serve
 
 Open the URL printed by the server, usually [`http://localhost:3000`](http://localhost:3000). A static server is required because the app uses ES modules and a service worker; opening `index.html` directly with `file://` will not work.
 
-On the first launch:
+On the first launch, the app shows a welcome screen instead of immediately allocating the model's substantial memory footprint. Click **Start model** when you are ready to use it:
 
 1. The service worker is registered.
 2. LiteRT-LM initializes WebGPU.
