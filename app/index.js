@@ -44,8 +44,7 @@ let isGenerating = false;
 let hasConversationHistory = false;
 let isInitializing = false;
 
-const DEFAULT_SYSTEM_PROMPT =
-  "You are a helpful AI assistant running in a web browser.";
+const DEFAULT_SYSTEM_PROMPT = systemPromptInput.placeholder;
 const SYSTEM_PROMPT_STORAGE_KEY = "gemmatalk.systemPrompt";
 
 function getSystemPrompt() {
