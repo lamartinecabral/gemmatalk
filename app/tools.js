@@ -60,20 +60,13 @@ export function createJavascriptWorker() {
 }
 
 export function getSystemDetails() {
-  const { navigator } = globalThis;
-  const navigatorWithMemory =
-    /** @type {Navigator & { deviceMemory?: number }} */ (navigator);
-
   return {
     userAgent: navigator.userAgent,
     platform: navigator.platform,
     language: navigator.language,
-    languages: [...navigator.languages],
-    hardwareConcurrency: navigator.hardwareConcurrency,
-    deviceMemory: navigatorWithMemory.deviceMemory ?? null,
-    maxTouchPoints: navigator.maxTouchPoints,
-    cookieEnabled: navigator.cookieEnabled,
     onLine: navigator.onLine,
+    hardwareConcurrency: navigator.hardwareConcurrency,
+    deviceMemory: navigator.deviceMemory ?? null,
   };
 }
 
