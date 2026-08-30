@@ -44,7 +44,7 @@ let hasConversationHistory = false;
 let isInitializing = false;
 
 const DEFAULT_SYSTEM_PROMPT =
-  "You are a conversational bot running in a user browser. You can get real time details about the environment by running javascript snippets.";
+  "You are a helpful AI assistant running in a web browser.";
 const SYSTEM_PROMPT_STORAGE_KEY = "gemmatalk.systemPrompt";
 
 function getSystemPrompt() {
