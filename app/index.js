@@ -1,12 +1,8 @@
 // @ts-check
-import { Engine } from "@litert-lm/core";
 import { lucideCreateIcons, getElem, isAtBottom } from "./utils.js";
 import { setupServiceWorker } from "./model-loader.js";
-import { allTools, createJavascriptWorker, executeTool } from "./tools.js";
-
-// The WebGPU compatible Gemma 4 E2B weights file (Approx 1.9GB)
-const MODEL_URL =
-  "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.litertlm";
+import { createJavascriptWorker, executeTool } from "./tools.js";
+import { createChat, getSystemPrompt, setSystemPrompt } from "./ai.js";
 
 const messagesContainer = document.getElementById("messages");
 const inputField = getElem("textarea", "userInput");
@@ -31,21 +27,11 @@ const youMessageTemplate = getElem("template", "you-message-template");
 const systemMessageTemplate = getElem("template", "system-message-template");
 const aiMessageTemplate = getElem("template", "ai-message-template");
 
-/** @type {Engine} */
-let aiEngine;
-/** @type {import('@litert-lm/core').Conversation} */
+/** @type {Awaited<ReturnType<typeof createChat>>} */
 let chatSession;
 let isGenerating = false;
 let hasConversationHistory = false;
 let isInitializing = false;
-
-const DEFAULT_SYSTEM_PROMPT = systemPromptInput.placeholder;
-const SYSTEM_PROMPT_STORAGE_KEY = "gemmatalk.systemPrompt";
-
-function getSystemPrompt() {
-  const savedPrompt = localStorage.getItem(SYSTEM_PROMPT_STORAGE_KEY);
-  return savedPrompt?.trim() ? savedPrompt : DEFAULT_SYSTEM_PROMPT;
-}
 
 function updateConversationButton() {
   const hasHistory = hasConversationHistory;
@@ -97,25 +83,19 @@ function setGenerationState(responseNode, label, active = true) {
 
 async function streamModelMessage(message, responseNode, stats) {
   setGenerationState(responseNode, "Thinking…");
-  /** @type {import('@litert-lm/core').ToolCall[]} */
-  let toolCalls = [];
-  for await (const chunk of chatSession.sendMessageStreaming(message)) {
-    if (chunk.tool_calls) toolCalls = chunk.tool_calls;
-    for (const content of chunk.content || []) {
-      if (content["type"] === "text") {
-        // Text has started streaming, so remove the waiting indicator
-        // immediately rather than leaving "Thinking…" visible.
-        setGenerationState(responseNode, "", false);
-        const wasAtBottom = isAtBottom(messagesContainer);
-        responseNode.innerText += String(content["text"]);
-        if (wasAtBottom) {
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
+  const { benchmark, toolCalls } = await chatSession.sendMessage(
+    message,
+    (text) => {
+      // Text has started streaming, so remove the waiting indicator
+      // immediately rather than leaving "Thinking…" visible.
+      setGenerationState(responseNode, "", false);
+      const wasAtBottom = isAtBottom(messagesContainer);
+      responseNode.innerText += text;
+      if (wasAtBottom) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
       }
-    }
-  }
-
-  const benchmark = await chatSession.getBenchmarkInfo();
+    },
+  );
   if (
     !toolCalls.length &&
     benchmark.lastDecodeTokenCount > 0 &&
@@ -148,7 +128,7 @@ function setStartupState(message, btnOptions = {}) {
 // Initialize the LiteRT-LM Engine only after the user asks us to. This avoids
 // allocating the model's substantial WebGPU/memory footprint on page load.
 async function initAI() {
-  if (isInitializing || aiEngine) return;
+  if (isInitializing) return;
   isInitializing = true;
   setStartupState(
     "Initializing WebGPU and checking the cache. The first start may download about 1.9 GB.",
@@ -156,12 +136,7 @@ async function initAI() {
   );
 
   try {
-    aiEngine = await Engine.create({
-      model: MODEL_URL,
-      benchmarkEnabled: true,
-    });
-    chatSession = await createChatSession();
-    chatSession.delete;
+    chatSession = await createChat();
     updateConversationButton();
 
     appendMessage(
@@ -180,20 +155,6 @@ async function initAI() {
   } finally {
     isInitializing = false;
   }
-}
-
-async function createChatSession() {
-  return aiEngine.createConversation({
-    preface: {
-      messages: [
-        {
-          role: "system",
-          content: getSystemPrompt(),
-        },
-      ],
-      tools: allTools,
-    },
-  });
 }
 
 function clearDisplayedMessages() {
@@ -245,7 +206,7 @@ function closeAboutPopover() {
 
 function openPromptModal() {
   if (isGenerating) return;
-  const savedPrompt = localStorage.getItem(SYSTEM_PROMPT_STORAGE_KEY);
+  const savedPrompt = getSystemPrompt({ useDefault: false });
   systemPromptInput.value = savedPrompt || "";
   promptModal.classList.remove("hidden");
   promptModal.classList.add("flex");
@@ -289,13 +250,10 @@ function confirmClearConversation() {
 }
 
 async function applySystemPrompt(prompt) {
-  const trimmedPrompt = prompt.trim();
-  if (trimmedPrompt) localStorage.setItem(SYSTEM_PROMPT_STORAGE_KEY, prompt);
-  else localStorage.removeItem(SYSTEM_PROMPT_STORAGE_KEY);
-
+  setSystemPrompt(prompt);
   promptApply.disabled = true;
   try {
-    chatSession = await createChatSession();
+    await chatSession.reset();
     hasConversationHistory = false;
     clearDisplayedMessages();
     closePromptModal();
@@ -309,7 +267,6 @@ async function applySystemPrompt(prompt) {
 }
 
 async function resetSystemPrompt() {
-  localStorage.removeItem(SYSTEM_PROMPT_STORAGE_KEY);
   await applySystemPrompt("");
 }
 
@@ -325,7 +282,7 @@ async function clearConversation() {
   inputField.disabled = true;
   sendButton.disabled = true;
   try {
-    chatSession = await createChatSession();
+    await chatSession.reset();
     hasConversationHistory = false;
     clearDisplayedMessages();
     updateConversationButton();
